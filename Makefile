@@ -14,3 +14,4 @@ run:
 worker:
 	@if [ -z "$(SERVER)" ]; then echo "Usage: make worker SERVER=<server_ip>"; exit 1; fi
 	./project1 $(SERVER)
+

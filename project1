@@ -12,3 +12,4 @@ fi
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 exec escript "$SCRIPT_DIR/project1.escript" "$@"
+

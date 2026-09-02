@@ -114,3 +114,4 @@ get_ip() ->
         [{A, B, C, D} | _] -> lists:flatten(io_lib:format("~B.~B.~B.~B", [A, B, C, D]));
         _ -> "127.0.0.1"
     end.
+
