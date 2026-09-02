@@ -116,13 +116,17 @@ to_hex(Bin) ->
     <<<<case B of _ when B < 10 -> B + $0; _ -> B - 10 + $a end>> || <<B:4>> <= Bin>>.
 
 get_ip() ->
-    {ok, IfList} = inet:getifaddrs(),
-    case [IP || {_If, Opts} <- IfList,
-                lists:member(up, proplists:get_value(flags, Opts, [])),
-                lists:member(running, proplists:get_value(flags, Opts, [])),
-                not lists:member(loopback, proplists:get_value(flags, Opts, [])),
-                {addr, {A,_,_,_} = IP} <- Opts, A =/= 127] of
-        [{A, B, C, D} | _] -> lists:flatten(io_lib:format("~B.~B.~B.~B", [A, B, C, D]));
-        _ -> "127.0.0.1"
+    case os:getenv("MY_IP") of
+        false ->
+            {ok, IfList} = inet:getifaddrs(),
+            case [IP || {_If, Opts} <- IfList,
+                        lists:member(up, proplists:get_value(flags, Opts, [])),
+                        lists:member(running, proplists:get_value(flags, Opts, [])),
+                        not lists:member(loopback, proplists:get_value(flags, Opts, [])),
+                        {addr, {A,_,_,_} = IP} <- Opts, A =/= 127] of
+                [{A, B, C, D} | _] -> lists:flatten(io_lib:format("~B.~B.~B.~B", [A, B, C, D]));
+                _ -> "127.0.0.1"
+            end;
+        CustomIP -> CustomIP
     end.
 
