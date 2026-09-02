@@ -40,20 +40,31 @@ start_server(K, Limit, Unit) ->
     timer:sleep(infinity).
 
 start_worker(ServerHost) ->
-    WorkerNode = list_to_atom("worker_" ++ integer_to_list(erlang:unique_integer([positive])) ++ "@" ++ get_ip()),
+    IP = get_ip(),
+    WorkerNode = list_to_atom("worker_" ++ integer_to_list(erlang:unique_integer([positive])) ++ "@" ++ IP),
     net_kernel:start([WorkerNode, longnames]),
     erlang:set_cookie(node(), ?COOKIE),
-    ServerNode = case string:find(ServerHost, "@") of
-        nomatch -> list_to_atom("server@" ++ ServerHost);
-        _ -> list_to_atom(ServerHost)
+    Candidates = case ServerHost of
+        "127.0.0.1" -> [list_to_atom("server@127.0.0.1"), list_to_atom("server@" ++ IP)];
+        "localhost" -> [list_to_atom("server@127.0.0.1"), list_to_atom("server@" ++ IP)];
+        _ ->
+            case string:find(ServerHost, "@") of
+                nomatch -> [list_to_atom("server@" ++ ServerHost)];
+                _ -> [list_to_atom(ServerHost)]
+            end
     end,
-    case net_adm:ping(ServerNode) of
+    connect_to_server(Candidates).
+
+connect_to_server([]) ->
+    io:format(standard_error, "Cannot connect to server.~n", []),
+    halt(1);
+connect_to_server([Node | Rest]) ->
+    case net_adm:ping(Node) of
         pong ->
-            spawn_workers({boss, ServerNode}, erlang:system_info(schedulers_online)),
+            spawn_workers({boss, Node}, erlang:system_info(schedulers_online)),
             timer:sleep(infinity);
         pang ->
-            io:format(standard_error, "Cannot connect to server ~p~n", [ServerNode]),
-            halt(1)
+            connect_to_server(Rest)
     end.
 
 spawn_workers(Boss, Num) ->
