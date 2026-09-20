@@ -1,9 +1,13 @@
 #!/usr/bin/env escript
 %%! -smp enable
 
+% Gator id used
 -define(PREFIX, <<"hkarimkonda;">>).
--define(WORK_UNIT, 1000).
+% We are checking total 500k strings per work unit
+-define(WORK_UNIT, 500000).
 
+% The main entry point where the K is defined
+% If K is not given but a ip address is given it will start running in worker mode
 main([Target]) ->
     case string:to_integer(Target) of
         {K, []} when K >= 0, K =< 64 -> server(K);
@@ -11,6 +15,7 @@ main([Target]) ->
         _ -> worker(Target)
     end.
 
+% Main boss worker function that intializes the system
 server(K) ->
     IP = local_ip({8, 8, 8, 8}),
     {ok, _} = net_kernel:start([list_to_atom("server@" ++ IP), longnames]),
@@ -20,6 +25,8 @@ server(K) ->
     start_workers(Boss),
     timer:sleep(infinity).
 
+% Worker function which runs in other machines
+% It will connect to boss and submit results
 worker(Host) ->
     {ok, ServerIP} = inet:getaddr(Host, inet),
     IP = inet:ntoa(ServerIP),
@@ -33,9 +40,11 @@ worker(Host) ->
         pang -> halt(1)
     end.
 
+% Starts concurrent mining actors, only one boss process
 start_workers(Boss) ->
     [spawn(fun() -> miner(Boss) end) || _ <- lists:seq(1, erlang:system_info(schedulers_online))].
 
+% Central coordinator actor that prints found coins.
 boss(Next, K) ->
     receive
         {get_work, Worker} ->
@@ -46,6 +55,7 @@ boss(Next, K) ->
             boss(Next, K)
     end.
 
+% the workflow loop for each mining worker process
 miner(Boss) ->
     Boss ! {get_work, self()},
     receive
@@ -55,6 +65,7 @@ miner(Boss) ->
     end.
 
 mine(Nonce, End, _, _) when Nonce >= End -> ok;
+% This code generates the strings and then does hashing and does difficulty verification
 mine(Nonce, End, Bits, Boss) ->
     Input = <<?PREFIX/binary, (integer_to_binary(Nonce, 36))/binary>>,
     Hash = crypto:hash(sha256, Input),
@@ -64,6 +75,7 @@ mine(Nonce, End, Bits, Boss) ->
     end,
     mine(Nonce + 1, End, Bits, Boss).
 
+% gets the codes local ip
 local_ip(Target) ->
     case os:getenv("MY_IP") of
         false ->

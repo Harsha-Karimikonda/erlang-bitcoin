@@ -10,16 +10,21 @@ The number is the required count of leading hexadecimal zeroes in each SHA-256 h
 
 ## Work unit and timing
 
-The work unit is **1,000 candidate nonces** per request to the boss actor. I compared sizes by mining 500 coins at k=4 on Windows with four Erlang schedulers (`$env:ERL_FLAGS = '+S 4'`). A temporary measurement version stopped after 500 coins and allowed work unit changes; those controls were removed from the final program. The 1,000 nonce unit had the shortest real time in this run:
+The work unit is **500,000 candidate nonces** per request to the boss actor. On September 19, 2026, I compared work units by mining 500 coins at k=4 per trial. The boss ran with four Erlang schedulers (`$env:ERL_FLAGS = '+S 4'`); the second machine's worker had 16. A temporary measurement copy of the same mining loop changed the unit size and stopped each timed phase after 500 coins. The final program still takes one argument.
 
-| Nonces per unit | CPU time | Real time | CPU / real |
-| ---: | ---: | ---: | ---: |
-| 1,000 | 30,937 ms | 7,956 ms | 3.89 |
-| 5,000 | 32,562 ms | 8,160 ms | 3.99 |
-| 10,000 | 35,938 ms | 8,994 ms | 4.00 |
-| 50,000 | 37,406 ms | 9,375 ms | 3.99 |
+| Strings per unit | Boss only: real time | Boss + worker: real time |
+| ---: | ---: | ---: |
+| 1,000 | 8.205 s | 8.619 s |
+| 10,000 | 8.383 s | 4.240 s |
+| 50,000 | 8.024 s | 2.540 s |
+| **500,000** | **8.409 s** | **2.313 s** |
+| 1,000,000 | 9.424 s | 2.278 s |
+| 2,000,000 | n/a | 2.466 s |
+| 5,000,000 | n/a | 2.328 s |
 
-The CPU to real time ratio of 3.89 in the k=4 timed run shows that nearly four cores were used. These are measurements from one run per size, so the ordering can vary with machine load.
+Times are averages where a size was repeated: two boss-only runs at 500,000 and 1,000,000, four two-machine runs at 500,000, two at 1,000,000 or larger, and three at 50,000. The smaller sizes each have one run. **500,000** was chosen because 1,000,000 was only about 1.5% faster with two machines in these samples, while it was about 12% slower with the boss alone.
+
+At 500,000, the two machines used an average of **45.4 s combined CPU time** per 500-coin run over **2.313 s real time**, a CPU/real ratio of **19.6** across 20 schedulers. The boss-only ratio was about **4.0**. Adding the worker reduced real time by about **3.6x** for the same 500-coin task. Each timed phase started after a one-second warmup; coin output was captured and its SHA-256 hashes verified.
 
 ## Example result for input 4
 
@@ -39,4 +44,4 @@ Coin order can vary because workers run concurrently. The prefix `hkarimkonda;` 
 
 ## Distributed run
 
-The previous project record reports **2 working machines**: a server and a remote worker. This cleanup was checked with a server and worker process on one machine. The server gives disjoint nonce ranges to local and remote worker actors, and only the server prints coins.
+The largest configuration tested was **2 working machines**: a boss on `192.168.0.152` and a worker on `192.168.0.26`. The boss gives disjoint nonce ranges to local and remote worker actors, and only the boss prints coins.
