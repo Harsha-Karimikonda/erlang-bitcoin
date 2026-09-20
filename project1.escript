@@ -27,6 +27,7 @@ parse_and_run(Arg, Limit, Unit) ->
     end.
 
 start_server(K, Limit, Unit) ->
+    ensure_epmd(),
     IP = get_ip(),
     NodeName = list_to_atom("server@" ++ IP),
     net_kernel:start([NodeName, longnames]),
@@ -40,7 +41,8 @@ start_server(K, Limit, Unit) ->
     timer:sleep(infinity).
 
 start_worker(ServerHost) ->
-    IP = get_ip(),
+    ensure_epmd(),
+    IP = get_worker_ip(ServerHost),
     WorkerNode = list_to_atom("worker_" ++ integer_to_list(erlang:unique_integer([positive])) ++ "@" ++ IP),
     net_kernel:start([WorkerNode, longnames]),
     erlang:set_cookie(node(), ?COOKIE),
@@ -61,7 +63,9 @@ connect_to_server([]) ->
 connect_to_server([Node | Rest]) ->
     case net_adm:ping(Node) of
         pong ->
-            spawn_workers({boss, Node}, erlang:system_info(schedulers_online)),
+            Workers = erlang:system_info(schedulers_online),
+            io:format(standard_error, "Connected to server ~s. Mining with ~p workers...~n", [Node, Workers]),
+            spawn_workers({boss, Node}, Workers),
             timer:sleep(infinity);
         pang ->
             connect_to_server(Rest)
@@ -115,18 +119,82 @@ mine_range(Current, End, K, Bits, Boss) ->
 to_hex(Bin) ->
     <<<<case B of _ when B < 10 -> B + $0; _ -> B - 10 + $a end>> || <<B:4>> <= Bin>>.
 
+ensure_epmd() ->
+    case gen_tcp:connect("127.0.0.1", 4369, [], 200) of
+        {ok, Socket} ->
+            gen_tcp:close(Socket),
+            ok;
+        {error, _} ->
+            case os:find_executable("epmd") of
+                false -> ok;
+                Epmd ->
+                    case os:type() of
+                        {win32, _} ->
+                            open_port({spawn_executable, Epmd}, [nouse_stdio]);
+                        _ ->
+                            os:cmd("\"" ++ Epmd ++ "\" -daemon")
+                    end,
+                    timer:sleep(300),
+                    ok
+            end
+    end.
+
+get_worker_ip(ServerHost) ->
+    case os:getenv("MY_IP") of
+        false ->
+            CleanHost = case string:split(ServerHost, "@") of
+                [_, H] -> H;
+                [H] -> H
+            end,
+            case inet:parse_address(CleanHost) of
+                {ok, TargetIP} ->
+                    case gen_udp:open(0, []) of
+                        {ok, S} ->
+                            case gen_udp:connect(S, TargetIP, 4369) of
+                                ok ->
+                                    {ok, {MyIP, _}} = inet:sockname(S),
+                                    gen_udp:close(S),
+                                    inet:ntoa(MyIP);
+                                _ ->
+                                    gen_udp:close(S),
+                                    get_ip()
+                            end;
+                        _ -> get_ip()
+                    end;
+                _ -> get_ip()
+            end;
+        CustomIP -> CustomIP
+    end.
+
 get_ip() ->
     case os:getenv("MY_IP") of
         false ->
-            {ok, IfList} = inet:getifaddrs(),
-            case [IP || {_If, Opts} <- IfList,
+            case gen_udp:open(0, []) of
+                {ok, S} ->
+                    case gen_udp:connect(S, {8, 8, 8, 8}, 53) of
+                        ok ->
+                            {ok, {MyIP, _}} = inet:sockname(S),
+                            gen_udp:close(S),
+                            inet:ntoa(MyIP);
+                        _ ->
+                            gen_udp:close(S),
+                            fallback_ip()
+                    end;
+                _ -> fallback_ip()
+            end;
+        CustomIP -> CustomIP
+    end.
+
+fallback_ip() ->
+    {ok, IfList} = inet:getifaddrs(),
+    Candidates = [IP || {_If, Opts} <- IfList,
                         lists:member(up, proplists:get_value(flags, Opts, [])),
                         lists:member(running, proplists:get_value(flags, Opts, [])),
                         not lists:member(loopback, proplists:get_value(flags, Opts, [])),
-                        {addr, {A,_,_,_} = IP} <- Opts, A =/= 127] of
-                [{A, B, C, D} | _] -> lists:flatten(io_lib:format("~B.~B.~B.~B", [A, B, C, D]));
-                _ -> "127.0.0.1"
-            end;
-        CustomIP -> CustomIP
+                        {addr, {A, B, _, _} = IP} <- Opts,
+                        A =/= 127, A =/= 169, not (A =:= 192 andalso B =:= 137)],
+    case Candidates of
+        [{A, B, C, D} | _] -> lists:flatten(io_lib:format("~B.~B.~B.~B", [A, B, C, D]));
+        _ -> "127.0.0.1"
     end.
 

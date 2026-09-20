@@ -11,5 +11,6 @@ if ! command -v escript >/dev/null 2>&1; then
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+command -v epmd >/dev/null 2>&1 && epmd -daemon 2>/dev/null || true
 exec escript "$SCRIPT_DIR/project1.escript" "$@"
 
