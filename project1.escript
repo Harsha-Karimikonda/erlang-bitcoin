@@ -35,7 +35,10 @@ start_server(K, Limit, Unit) ->
     io:format(standard_error, "Server running at ~s (To connect a worker: ./project1 ~s)~n", [NodeName, IP]),
     statistics(runtime),
     statistics(wall_clock),
-    BossPid = spawn(fun() -> boss_loop(1, K, Unit, 0, Limit) end),
+    BossPid = spawn(fun() ->
+        net_kernel:monitor_nodes(true),
+        boss_loop(1, K, Unit, 0, Limit)
+    end),
     register(boss, BossPid),
     spawn_workers(BossPid, erlang:system_info(schedulers_online)),
     timer:sleep(infinity).
@@ -76,6 +79,12 @@ spawn_workers(Boss, Num) ->
 
 boss_loop(NextNonce, K, Unit, Found, Limit) ->
     receive
+        {nodeup, Node} ->
+            io:format(standard_error, "[+] Worker connected: ~s~n", [Node]),
+            boss_loop(NextNonce, K, Unit, Found, Limit);
+        {nodedown, Node} ->
+            io:format(standard_error, "[-] Worker disconnected: ~s~n", [Node]),
+            boss_loop(NextNonce, K, Unit, Found, Limit);
         {get_work, From} ->
             From ! {work, NextNonce, Unit, K},
             boss_loop(NextNonce + Unit, K, Unit, Found, Limit);
