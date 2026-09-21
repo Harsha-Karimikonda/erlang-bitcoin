@@ -49,4 +49,4 @@ Coin order can vary because workers run concurrently. The prefix `hkarimkonda;` 
 
 ## Distributed run
 
-The largest configuration tested was **2 working machines**: a boss on `192.168.0.152` and a worker on `192.168.0.26`. The boss gives disjoint string ranges to local and remote worker actors, and only the boss prints coins.
+The largest configuration tested was **2 working machines**. The boss gives disjoint string ranges to local and remote worker actors, and only the boss prints coins.
