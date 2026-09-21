@@ -1,5 +1,10 @@
 # Erlang Bitcoin Miner
 
+## Team Members
+
+- **Member 1**: `hkarimkonda` (UFID: `50966091`)
+- **Member 2**: `ve.gollepalli` (UFID: `24690032`)
+
 Run from PowerShell with Erlang/OTP installed:
 
 ```powershell
@@ -10,7 +15,7 @@ The number is the required count of leading hexadecimal zeroes in each SHA-256 h
 
 ## Work unit and timing
 
-The work unit is **500,000 candidate nonces** per request to the boss actor. On September 19, 2026, I compared work units by mining 500 coins at k=4 per trial. The boss ran with four Erlang schedulers (`$env:ERL_FLAGS = '+S 4'`); the second machine's worker had 16. A temporary measurement copy of the same mining loop changed the unit size and stopped each timed phase after 500 coins. The final program still takes one argument.
+The work unit is **500,000 candidate strings** per request to the boss actor. On September 19, 2026, I compared work units by mining 500 coins at k=4 per trial. The boss ran with four Erlang schedulers (`$env:ERL_FLAGS = '+S 4'`); the second machine's worker had 16. A temporary measurement copy of the same mining loop changed the unit size and stopped each timed phase after 500 coins. The final program still takes one argument.
 
 | Strings per unit | Boss only: real time | Boss + worker: real time |
 | ---: | ---: | ---: |
@@ -44,4 +49,4 @@ Coin order can vary because workers run concurrently. The prefix `hkarimkonda;` 
 
 ## Distributed run
 
-The largest configuration tested was **2 working machines**: a boss on `192.168.0.152` and a worker on `192.168.0.26`. The boss gives disjoint nonce ranges to local and remote worker actors, and only the boss prints coins.
+The largest configuration tested was **2 working machines**: a boss on `192.168.0.152` and a worker on `192.168.0.26`. The boss gives disjoint string ranges to local and remote worker actors, and only the boss prints coins.
