@@ -36,7 +36,10 @@ worker(Host) ->
     erlang:set_cookie(node(), bitcoin),
     Server = list_to_atom("server@" ++ IP),
     case net_adm:ping(Server) of
-        pong -> start_workers({boss, Server}), timer:sleep(infinity);
+        pong ->
+            io:format("This system with IP ~s is connected to boss~n", [LocalIP]),
+            start_workers({boss, Server}),
+            timer:sleep(infinity);
         pang -> halt(1)
     end.
 
