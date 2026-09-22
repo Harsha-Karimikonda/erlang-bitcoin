@@ -5,6 +5,10 @@
 - **Member 1**: `hkarimkonda` (UFID: `50966091`)
 - **Member 2**: `ve.gollepalli` (UFID: `24690032`)
 
+## Team Name
+ - **Dosp project**
+
+ 
 Run from PowerShell with Erlang/OTP installed:
 
 ```powershell
